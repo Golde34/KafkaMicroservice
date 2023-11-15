@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -37,11 +39,21 @@ public class Kafka {
     @Bean
     private boolean loadKafkaServerConfig() throws Exception {
         List<ServerEntity> configs = getListServer.getServers();
+        ExecutorService executorService = Executors.newCachedThreadPool();
+
         for (ServerEntity config : configs) {
-            logger.info("bootstrapServers: " + config.getBootstrapServers());
-            logger.info("groupId: " + config.getGroupId());
-            messageListener(config.getBootstrapServers(), config.getGroupId());
+            executorService.submit(() -> {
+                logger.info("bootstrapServers: " + config.getBootstrapServers());
+                logger.info("groupId: " + config.getGroupId());
+                try {
+                    messageListener(config.getBootstrapServers(), config.getGroupId());
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
+
+        executorService.shutdown(); // Đảm bảo shutdown executor service khi không cần nữa
         return true;
     }
 
