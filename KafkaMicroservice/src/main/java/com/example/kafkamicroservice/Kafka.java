@@ -7,7 +7,9 @@ import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -19,17 +21,31 @@ import org.springframework.kafka.listener.MessageListener;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 @Component
+@EnableConfigurationProperties(GetListServer.class)
 public class Kafka {
     @Value("group-Id")
     private String group;
 
     Logger logger = Logger.getLogger(Kafka.class.getName());
+    @Autowired
+    private GetListServer getListServer;
+
+    @Bean
+    private boolean loadKafkaServerConfig() {
+        List<ServerEntity> configs = getListServer.getServers();
+        for (ServerEntity config : configs) {
+            logger.info("bootstrapServers: " + config.getBootstrapServers());
+            logger.info("groupId: " + config.getGroupId());
+        }
+        return true;
+    }
 
     @Bean
     public boolean testAutoCommit() throws Exception {
