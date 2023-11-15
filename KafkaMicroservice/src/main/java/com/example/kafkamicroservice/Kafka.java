@@ -30,25 +30,22 @@ import java.util.logging.Logger;
 @Component
 @EnableConfigurationProperties(GetListServer.class)
 public class Kafka {
-    @Value("group-Id")
-    private String group;
-
     Logger logger = Logger.getLogger(Kafka.class.getName());
     @Autowired
     private GetListServer getListServer;
 
     @Bean
-    private boolean loadKafkaServerConfig() {
+    private boolean loadKafkaServerConfig() throws Exception {
         List<ServerEntity> configs = getListServer.getServers();
         for (ServerEntity config : configs) {
             logger.info("bootstrapServers: " + config.getBootstrapServers());
             logger.info("groupId: " + config.getGroupId());
+            messageListener(config.getBootstrapServers(), config.getGroupId());
         }
         return true;
     }
 
-    @Bean
-    public boolean testAutoCommit() throws Exception {
+    public boolean messageListener(String bs, String groupId) throws Exception {
         logger.info("Start auto");
         ContainerProperties containerProps = new ContainerProperties("topic1", "topic2");
 
@@ -64,7 +61,7 @@ public class Kafka {
         // Set the message listener in container properties
         containerProps.setMessageListener(messageListener);
 
-        KafkaMessageListenerContainer<Integer, String> container = createContainer(containerProps);
+        KafkaMessageListenerContainer<Integer, String> container = createContainer(bs, groupId, containerProps);
         final CountDownLatch latch = new CountDownLatch(4);
 
         container.setBeanName("testAuto");
@@ -83,8 +80,8 @@ public class Kafka {
         return true;
     }
 
-    private KafkaMessageListenerContainer<Integer, String> createContainer(ContainerProperties containerProps) {
-        Map<String, Object> props = consumerProps();
+    private KafkaMessageListenerContainer<Integer, String> createContainer(String bootstrapServers, String groupId, ContainerProperties containerProps) {
+        Map<String, Object> props = consumerProps(bootstrapServers, groupId);
         DefaultKafkaConsumerFactory<Integer, String> cf =
                 new DefaultKafkaConsumerFactory<Integer, String>(props);
         return new KafkaMessageListenerContainer<>(cf, containerProps);
@@ -98,10 +95,10 @@ public class Kafka {
         return template;
     }
 
-    private Map<String, Object> consumerProps() {
+    private Map<String, Object> consumerProps(String bootstrapServers, String groupId) {
         Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, group);
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "100");
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000");
