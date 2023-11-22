@@ -59,13 +59,17 @@ public class Kafka {
 
     public boolean messageListener(String bs, String groupId) throws Exception {
         logger.info("Start auto");
-        ContainerProperties containerProps = new ContainerProperties("topic1", "topic2");
+        ContainerProperties containerProps = new ContainerProperties("topic1");
+        containerProps.setGroupId(groupId);
 
         // Create a MessageListener implementation
         MessageListener<Integer, String> messageListener = new MessageListener<Integer, String>() {
             @Override
-            public void onMessage(ConsumerRecord<Integer, String> message) {
-                logger.info("received: " + message);
+            public void onMessage(ConsumerRecord<Integer, String> record) {
+                logger.info("Received: " + record.topic());
+                logger.info("Received: " + record.value());
+                logger.info("Received: " + record.partition());
+                logger.info("Received: " + record.offset());
                 // Add your message processing logic here
             }
         };
@@ -74,21 +78,10 @@ public class Kafka {
         containerProps.setMessageListener(messageListener);
 
         KafkaMessageListenerContainer<Integer, String> container = createContainer(bs, groupId, containerProps);
-        final CountDownLatch latch = new CountDownLatch(4);
 
         container.setBeanName("testAuto");
         container.start();
-        Thread.sleep(1000); // wait a bit for the container to start
-        KafkaTemplate<Integer, String> template = createTemplate();
-        template.setDefaultTopic("topic1");
-        template.sendDefault(0, "foo");
-        template.sendDefault(2, "bar");
-        template.sendDefault(0, "baz");
-        template.sendDefault(2, "qux");
-        template.flush();
-        // assertTrue(latch.await(60, TimeUnit.SECONDS));
-        container.stop();
-        logger.info("Stop auto");
+
         return true;
     }
 
@@ -114,7 +107,7 @@ public class Kafka {
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "100");
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000");
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         return props;
     }
@@ -126,7 +119,7 @@ public class Kafka {
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
         props.put(ProducerConfig.LINGER_MS_CONFIG, 1);
         props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         return props;
     }
