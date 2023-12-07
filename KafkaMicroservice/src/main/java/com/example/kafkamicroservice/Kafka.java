@@ -59,23 +59,27 @@ public class Kafka {
 
     public boolean messageListener(String bs, String groupId) throws Exception {
         logger.info("Start auto");
+
+        AcknowlegingMessageListener<String, String> messageListener = (record, acknowlegement) -> {
+            String message = record.value();
+            logger.info("Received message: " + message);
+            int partition = record.partition();
+            logger.info("From partition: " + partition);
+            long offset = record.offset();
+            logger.info("From offset: " + offset);
+            String topic = record.topic();
+            logger.info("Received from topic: " + topic);
+
+            acknowlegement.acknowledge();
+        }
+
         ContainerProperties containerProps = new ContainerProperties("topic1");
         containerProps.setGroupId(groupId);
-
-        // Create a MessageListener implementation
-        MessageListener<Integer, String> messageListener = new MessageListener<Integer, String>() {
-            @Override
-            public void onMessage(ConsumerRecord<Integer, String> record) {
-                logger.info("Received: " + record.topic());
-                logger.info("Received: " + record.value());
-                logger.info("Received: " + record.partition());
-                logger.info("Received: " + record.offset());
-                // Add your message processing logic here
-            }
-        };
-
         // Set the message listener in container properties
         containerProps.setMessageListener(messageListener);
+        containerProps.setAckMode(AckMode.MANUAL_IMMEDIATE);
+        containerProps.setPollTimeout(3000);
+        containerProps.setSyncCommits(true);
 
         KafkaMessageListenerContainer<Integer, String> container = createContainer(bs, groupId, containerProps);
 
